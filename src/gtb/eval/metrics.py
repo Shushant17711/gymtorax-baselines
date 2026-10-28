@@ -36,3 +36,23 @@ def prob_improvement(x: np.ndarray, y: np.ndarray) -> float:
         eq = (x[:, j][:, None] == y[:, j][None, :]).mean()
         out.append(gt + 0.5 * eq)
     return float(np.mean(out))
+
+
+def iqm_diff_ci(x: np.ndarray, y: np.ndarray, n_boot: int = 2000, alpha: float = 0.05,
+                seed: int = 0) -> tuple[float, float, float]:
+    """IQM(x) - IQM(y) with a stratified-bootstrap CI.
+
+    x, y: (n_seeds, n_scenarios) returns, same scenario columns. Seeds are resampled independently per method
+    within each scenario (the seeds of the two methods are unrelated); scenarios are fixed strata.
+    """
+    x, y = np.asarray(x, float), np.asarray(y, float)
+    if x.shape[1] != y.shape[1]:
+        raise ValueError("x and y must share scenario columns")
+    rng = np.random.default_rng(seed)
+    d = np.empty(n_boot)
+    for b in range(n_boot):
+        ix = rng.integers(0, x.shape[0], size=x.shape)
+        iy = rng.integers(0, y.shape[0], size=y.shape)
+        d[b] = iqm(np.take_along_axis(x, ix, 0)) - iqm(np.take_along_axis(y, iy, 0))
+    lo, hi = np.quantile(d, [alpha / 2, 1 - alpha / 2])
+    return iqm(x) - iqm(y), float(lo), float(hi)

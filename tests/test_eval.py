@@ -53,3 +53,18 @@ def test_classical_with_scripted_params_reproduces_scripted():
     assert c["return"] == pytest.approx(s["return"], abs=1e-9)
     fb = evaluate(partial(classical_policy, {"kp": 2.0, "ki": 0.1, "q_target": 1.2}), [nominal()], workers=1)[0]
     assert fb["steps"] == 150 and abs(fb["return"] - s["return"]) > 1e-4  # feedback path is live
+
+
+def test_iqm_diff_ci():
+    from gtb.eval.metrics import iqm_diff_ci
+
+    rng = np.random.default_rng(1)
+    base = rng.normal(size=(1, 20))
+    x = base + 1.0 + 0.1 * rng.normal(size=(5, 20))
+    y = base + 0.1 * rng.normal(size=(5, 20))
+    d, lo, hi = iqm_diff_ci(x, y, n_boot=500)
+    assert lo <= d <= hi and lo > 0.5
+    d, lo, hi = iqm_diff_ci(y, y + 0.0, n_boot=500)
+    assert d == 0 and lo < 0 < hi
+    with pytest.raises(ValueError):
+        iqm_diff_ci(x, y[:, :5])
