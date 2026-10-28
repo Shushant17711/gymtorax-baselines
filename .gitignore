@@ -9,3 +9,4 @@ results/**/*.pt
 logs/
 *.egg-info/
 results/**/*.npz
+logs_main.out
