@@ -36,14 +36,17 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - _Requirements: 1.3_
 
 - [ ] 3. Evaluation harness and reference controllers
-  - [ ] 3.1 Rollout and metrics
+  - [x] 3.1 Rollout and metrics
     - `src/gtb/eval/rollout.py`: run a policy on a list of variants in a process pool, return per-episode records (return, components, violations, failed)
     - `src/gtb/eval/metrics.py`: IQM, stratified bootstrap CI
     - Tests: IQM on known arrays, CI contains the point estimate, rollout of the random policy is reproducible given a seed
     - _Requirements: 3.2_
-  - [ ] 3.2 Reference agents and PID tuning
-    - `src/gtb/agents/reference.py`: random, scripted (IterHybridAgent), PID wrapper
-    - `scripts/tune_pid.py`: Optuna 50 trials on train variants; frozen gains in `configs/agent/pid.yaml`
+  - [ ] 3.2 Reference agents and classical-controller tuning
+    - `src/gtb/agents/reference.py`: random, scripted (IterHybridAgent), and `ClassicalPolicy` (feed-forward Ip ramp +
+      heating schedule + PI feedback of Ip on q_min; scripted schedule is the kp=ki=0 member). Replaces the bundled
+      PIDAgent, which only tracks a user-supplied central-j target and has no reward-relevant default. (code done, tested)
+    - `scripts/tune_classical.py`: Optuna TPE, 120 trials x 5 fixed train variants, trial 0 = scripted; writes
+      `configs/agent/classical.yaml` (records tuning env-steps). NOT YET RUN - waiting for the go-ahead to run compute.
     - `scripts/evaluate.py` writes `results/reference/*/eval.json`
     - Tests: each agent completes an episode, PID returns actions inside the Box
     - _Requirements: 2.1_
