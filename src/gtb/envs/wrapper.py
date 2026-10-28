@@ -19,6 +19,7 @@ N_RADIAL = 8
 ACTION_KEYS = (("ECRH", 3), ("Ip", 1), ("NBI", 3))
 ACT_DIM = sum(n for _, n in ACTION_KEYS)
 EPISODE_LEN = 150
+CLIP = 10.0  # normalised features are clipped; tau_E is heavy-tailed early in the shot
 
 
 def _scalar(state: dict, k: str) -> float:
@@ -91,7 +92,7 @@ class FlatEnv(gym.Env):
     def _obs(self, state: dict) -> np.ndarray:
         f = featurize(state)
         if self.norm is not None:
-            f = (f - self.norm["mean"]) / self.norm["std"]
+            f = np.clip((f - self.norm["mean"]) / self.norm["std"], -CLIP, CLIP)
         return np.concatenate([f, self._prev_a, [self._t / EPISODE_LEN]]).astype(np.float32)
 
     def reset(self, *, seed=None, options=None):
@@ -119,3 +120,13 @@ class FlatEnv(gym.Env):
             obs = np.nan_to_num(obs, nan=0.0, posinf=0.0, neginf=0.0)
             term = True
         return obs, float(r), bool(term), bool(trunc), info
+
+
+def load_norm(path: str = "configs/env/norm.json") -> dict:
+    import json
+    from pathlib import Path
+
+    d = json.loads(Path(path).read_text())
+    if d["features"] != FEATURE_NAMES:
+        raise ValueError("norm.json feature list does not match wrapper FEATURE_NAMES")
+    return {"mean": np.asarray(d["mean"]), "std": np.asarray(d["std"])}

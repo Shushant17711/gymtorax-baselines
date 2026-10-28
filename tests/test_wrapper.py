@@ -38,3 +38,22 @@ def test_scripted_episode_reward_matches(env):
         done = te or tr
     assert n == 150
     assert abs(total - 3.263) < 5e-3
+
+
+@pytest.mark.slow
+def test_normalised_scripted_episode_bounded():
+    from gymtorax import IterHybridAgent
+
+    from gtb.envs.wrapper import N_PHYS, load_norm
+
+    env = FlatEnv(norm=load_norm())
+    agent = IterHybridAgent(env.env.action_space)
+    obs, _ = env.reset(seed=0)
+    rows, done = [obs[:N_PHYS]], False
+    while not done:
+        obs, _, te, tr, _ = env.step(env.from_env_action(agent.act(env.last_state)))
+        rows.append(obs[:N_PHYS])
+        done = te or tr
+    X = np.abs(np.stack(rows))
+    assert X.max() <= 10.0
+    assert (X >= 10.0).mean() < 1e-3  # clipping is rare

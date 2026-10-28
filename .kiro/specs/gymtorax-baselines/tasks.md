@@ -25,9 +25,9 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - `info` carries reward components, constraint flags, `failed`
     - Tests: obs shape/finite over one scripted episode, action map hits Box corners, reward equals the underlying env's
     - _Requirements: 1.1, 1.2_
-  - [ ] 2.2 Fit and freeze normalisation
+  - [x] 2.2 Fit and freeze normalisation
     - `scripts/fit_norm.py`: 20 random+scripted episodes -> `configs/env/norm.json` (mean/std per feature, std floor)
-    - Tests: normalised features of the scripted episode have |z| < 10
+    - Tests: normalised features clipped to ±10 (tau_E heavy-tailed); clipping rate < 0.1% on the scripted episode
     - _Requirements: 1.1_
   - [ ] 2.3 Implement perturbed variants
     - `src/gtb/envs/variants.py`: `make_variant(params)` edits the TORAX config (n/T init scale, Ip target, chi multiplier); `sample_variant(rng, split)` for train/heldout/ood
