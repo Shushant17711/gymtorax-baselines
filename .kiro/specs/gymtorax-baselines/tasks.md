@@ -57,11 +57,11 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - Tests: a 300-step smoke run for a dummy agent produces all files
     - _Requirements: 3.1, 4.1_
 
-- [ ] 5. Model-free baselines
-  - [ ] 5.1 PPO and SAC via stable-baselines3
+- [x] 5. Model-free baselines
+  - [x] 5.1 PPO and SAC via stable-baselines3
     - `src/gtb/agents/sb3.py`: SubprocVecEnv(8) for PPO, single env for SAC; train variants sampled per reset
     - `configs/agent/{ppo,sac}.yaml` with budget 300k steps
-    - Tests: a 2k-step smoke run of each saves a model that `evaluate.py` can load
+    - Tests: a smoke run of each (PPO 600 steps on 2 envs, SAC 400 steps) saves a model that `scripts/evaluate.py` reloads and re-evaluates identically. Full 300k runs NOT started (waiting for go-ahead)
     - _Requirements: 2.2_
 
 - [ ] 6. Model-based baseline

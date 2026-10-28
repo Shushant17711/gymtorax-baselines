@@ -29,3 +29,28 @@ def test_dummy_smoke_run(tmp_path):
     assert ev["env_steps"] == 300 and set(ev["summary"]) == {"nominal", "heldout", "ood"}
     assert ev["summary"]["heldout"]["n"] == 15
     assert train(cfg, root=str(tmp_path)) == rd  # second call is a no-op
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("algo,steps,extra", [
+    ("ppo", 600, ["agent.n_envs=2", "agent.n_steps=150", "agent.batch_size=100", "agent.n_epochs=2"]),
+    ("sac", 400, ["agent.learning_starts=200", "agent.batch_size=64"]),
+])
+def test_sb3_smoke(tmp_path, algo, steps, extra):
+    from gtb.train import train
+
+    cfg = load_config(["configs/base.yaml", f"configs/agent/{algo}.yaml"],
+                      [f"train.steps={steps}", "train.eval_every=100000", "train.eval_workers=8", *extra])
+    rd = train(cfg, root=str(tmp_path))
+    assert (rd / "model.zip").exists()
+    ev = json.loads((rd / "eval.json").read_text())
+    assert ev["env_steps"] >= steps and ev["summary"]["ood"]["n"] == 5
+    assert all(r["steps"] > 0 for r in ev["episodes"]["nominal"])
+    if algo == "ppo":  # evaluate.py reloads the saved model and reproduces the deterministic eval
+        import subprocess
+        import sys
+
+        before = ev["summary"]["nominal"]["mean"]
+        subprocess.run([sys.executable, "scripts/evaluate.py", "--run", str(rd), "--workers", "8"], check=True,
+                       capture_output=True)
+        assert json.loads((rd / "eval.json").read_text())["summary"]["nominal"]["mean"] == pytest.approx(before)
