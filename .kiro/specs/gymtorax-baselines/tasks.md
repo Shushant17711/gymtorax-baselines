@@ -19,7 +19,7 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - Tests: config round-trip, override, hash stability
     - _Requirements: 4.1, 5.1_
 
-- [ ] 2. Environment wrapper and variants
+- [x] 2. Environment wrapper and variants
   - [x] 2.1 Implement `FlatEnv`
     - `src/gtb/envs/wrapper.py`: obs feature selection as in design, [-1,1]^7 action map, previous action + t/T features
     - `info` carries reward components, constraint flags, `failed`
@@ -29,9 +29,9 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - `scripts/fit_norm.py`: 20 random+scripted episodes -> `configs/env/norm.json` (mean/std per feature, std floor)
     - Tests: normalised features clipped to ±10 (tau_E heavy-tailed); clipping rate < 0.1% on the scripted episode
     - _Requirements: 1.1_
-  - [ ] 2.3 Implement perturbed variants
-    - `src/gtb/envs/variants.py`: `make_variant(params)` edits the TORAX config (n/T init scale, Ip target, chi multiplier); `sample_variant(rng, split)` for train/heldout/ood
-    - Fixed held-out list `configs/env/heldout.yaml` (15 in-range + 5 OOD)
+  - [x] 2.3 Implement perturbed variants
+    - `src/gtb/envs/variants.py`: `make_variant(params)` edits the TORAX config (T_init scale, nbar, T_ped scale, Z_eff, QLKNN collisionality multiplier; TORAX has no global chi multiplier and n_e init is renormalised to nbar); `sample_variant(rng, split)` for train/heldout/ood
+    - Fixed held-out list `configs/env/heldout.yaml` (nominal + 15 in-range + 5 OOD) from `scripts/make_heldout.py`
     - Tests: variant changes the trajectory, nominal variant reproduces 3.263 for the scripted agent, same params mean the same return
     - _Requirements: 1.3_
 

@@ -20,9 +20,11 @@ results/<method>/<cfghash>/seed<k>/   metrics.jsonl, eval.json, model
 - Episode = 150 steps, gamma = 0.99. Failure (TORAX error/NaN) -> terminate with the env's reward and a `failed` flag.
 
 ## Variants (generalisation)
-`variants.py` edits the TORAX config dict before env construction: initial n_e/T_e scale in [0.8,1.2], Ip target +/-10%,
-transport chi multiplier in [0.7,1.3]. Training draws from the train range; evaluation uses nominal + 20 fixed held-out draws
-(including 5 outside the training range, OOD).
+`variants.py` subclasses IterHybridEnv and edits its TORAX config: initial T scale [0.8,1.2], nbar [0.75,0.95] (fGW),
+pedestal T scale [0.85,1.15], Z_eff [1.7,2.3], QLKNN collisionality multiplier [0.8,1.25] (log-uniform; TORAX has no global
+chi multiplier). Training draws from the train range each reset; evaluation uses nominal + 15 held-out in-range draws
++ 5 OOD draws (1-2 params in the band out to twice the train half-width), frozen in `configs/env/heldout.yaml`.
+Scripted-agent returns span 3.01-3.53 across draws (nominal 3.263), so variants matter.
 
 ## Methods
 - PID: the bundled PIDAgent on Ip, gains tuned by Optuna (50 trials) on train variants.

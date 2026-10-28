@@ -61,9 +61,10 @@ OBS_DIM = N_PHYS + ACT_DIM + 1
 class FlatEnv(gym.Env):
     metadata: ClassVar[dict] = {"render_modes": []}
 
-    def __init__(self, env_id: str = "gymtorax/IterHybrid-v0", norm: dict | None = None, env_kwargs=None):
-        self.env = gym.make(env_id, **(env_kwargs or {}))
-        self.inner = self.env.unwrapped
+    def __init__(self, variant: dict | None = None, norm: dict | None = None, env_kwargs=None):
+        self.env_kwargs = dict(env_kwargs or {})
+        self.variant = None
+        self._build(variant)
         space = self.env.action_space
         self.low = np.concatenate([np.asarray(space[k].low, np.float64).reshape(-1) for k, _ in ACTION_KEYS])
         self.high = np.concatenate([np.asarray(space[k].high, np.float64).reshape(-1) for k, _ in ACTION_KEYS])
@@ -73,6 +74,18 @@ class FlatEnv(gym.Env):
         self._t = 0
         self._prev_a = np.zeros(ACT_DIM)
         self.last_state: dict | None = None
+
+    def _build(self, variant: dict | None) -> None:
+        from gtb.envs.variants import NOMINAL, VariantIterHybridEnv
+
+        v = {**NOMINAL, **(variant or {})}
+        if v == self.variant:
+            return
+        if getattr(self, "env", None) is not None:
+            self.env.close()
+        self.env = gym.wrappers.OrderEnforcing(VariantIterHybridEnv(variant=v, **self.env_kwargs))
+        self.inner = self.env.unwrapped
+        self.variant = v
 
     # --- action mapping -------------------------------------------------
     def to_env_action(self, a: np.ndarray) -> dict:
@@ -96,7 +109,11 @@ class FlatEnv(gym.Env):
         return np.concatenate([f, self._prev_a, [self._t / EPISODE_LEN]]).astype(np.float32)
 
     def reset(self, *, seed=None, options=None):
-        state, info = self.env.reset(seed=seed, options=options)
+        """options={"variant": {...}} switches scenario (rebuilds the TORAX app if it changed)."""
+        options = dict(options or {})
+        if "variant" in options:
+            self._build(options.pop("variant"))
+        state, info = self.env.reset(seed=seed, options=options or None)
         self._t, self._prev_a, self.last_state = 0, np.zeros(ACT_DIM), state
         return self._obs(state), dict(info or {})
 
