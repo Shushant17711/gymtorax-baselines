@@ -175,7 +175,7 @@ class MBRLAgent(Agent):
         def jobs(factories):
             return [(f, sample_variant(rng, "train"), 0, norm_path, True) for f in factories]
 
-        with make_pool(int(a.workers)) as pool:
+        with make_pool(int(a.get("pool_size", a.workers))) as pool:  # pool size: resources only
             n_init = max(1, int(a.init_steps) // 150)
             fs = [partial(_random, int(rng.integers(1 << 31))) if i % 2 == 0 else
                   partial(_noisy_scripted, float(a.scripted_noise), int(rng.integers(1 << 31)))

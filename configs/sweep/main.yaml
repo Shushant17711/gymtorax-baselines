@@ -1,8 +1,17 @@
 # Main preregistered sweep: 4 learned methods x 5 seeds. Budgets are per run, in env steps.
+# `resources` overrides change process counts only (excluded from the run hash; results are identical).
+# mem_gb = peak RAM per job (~1 GB per TORAX process): training envs/workers + periodic-eval pool + main.
 seeds: [0, 1, 2, 3, 4]
 methods:
-  ppo:    {config: configs/agent/ppo.yaml,    overrides: [train.steps=300000], slots: 8}
-  sac:    {config: configs/agent/sac.yaml,    overrides: [train.steps=300000], slots: 2}
-  mbrl:   {config: configs/agent/mbrl.yaml,   overrides: [train.steps=50000],  slots: 16}
-  pimbrl: {config: configs/agent/pimbrl.yaml, overrides: [train.steps=50000],  slots: 16}
-cpu_slots: 20     # one slot = one CPU core; a job runs when its slots fit
+  sac:    {config: configs/agent/sac.yaml,    overrides: [train.steps=300000], slots: 2,  mem_gb: 3,
+           resources: [train.eval_workers=1]}
+  ppo:    {config: configs/agent/ppo.yaml,    overrides: [train.steps=300000], slots: 8,  mem_gb: 11,
+           resources: [train.eval_workers=2]}
+  mbrl:   {config: configs/agent/mbrl.yaml,   overrides: [train.steps=50000],  slots: 8,  mem_gb: 12,
+           resources: [train.eval_workers=2, agent.pool_size=8]}
+  pimbrl: {config: configs/agent/pimbrl.yaml, overrides: [train.steps=50000],  slots: 8,  mem_gb: 12,
+           resources: [train.eval_workers=2, agent.pool_size=8]}
+cpu_slots: 20
+mem_gb: 17        # total budget for running jobs (machine: 23 GB, desktop ~4 GB)
+mem_margin_gb: 2  # also require MemAvailable >= job mem_gb + margin before starting a job
+priority: [mbrl, pimbrl]   # the primary hypothesis (H1) first

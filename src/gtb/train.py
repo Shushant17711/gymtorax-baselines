@@ -15,10 +15,15 @@ from gtb.envs.variants import load_eval_set
 from gtb.eval.metrics import iqm
 from gtb.seed import seed_everything
 
+# Settings that change resource use but not results; excluded from the run hash.
+RESOURCE_KEYS = (("train", "eval_workers"), ("agent", "pool_size"), ("agent", "torch_threads"))
+
 
 def run_dir_for(cfg: Config, root: str = "results") -> Path:
     d = cfg.to_dict()
     seed = d.pop("seed")
+    for sec, k in RESOURCE_KEYS:
+        d.get(sec, {}).pop(k, None)
     return Path(root) / cfg.agent.name / config_hash(d) / f"seed{seed}"
 
 
