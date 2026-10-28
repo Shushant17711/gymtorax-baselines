@@ -6,6 +6,8 @@ A model may define a physics `prior_delta`; the network then learns the residual
 """
 from __future__ import annotations
 
+import itertools
+
 import numpy as np
 import torch
 from torch import nn
@@ -24,7 +26,7 @@ class EnsembleMLP(nn.Module):
         dims = [in_dim] + [hidden] * layers + [2 * out_dim]
         self.W = nn.ParameterList()
         self.b = nn.ParameterList()
-        for i, o in zip(dims[:-1], dims[1:], strict=True):
+        for i, o in itertools.pairwise(dims):
             w = torch.empty(members, i, o)
             for e in range(members):
                 nn.init.trunc_normal_(w[e], std=1 / (2 * np.sqrt(i)))
