@@ -94,6 +94,6 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - `src/gtb/report.py` (tables, H1-H3 verdicts via `iqm_diff_ci`, figures), `scripts/make_figures.py` -> `results/summary.json`, `results/verdicts.md`, `paper/table_main.tex`, `figures/*.pdf`; `--trajectories` rolls out nominal shots
     - Tests: runs on a fake results tree with planted effects (H1 supported, H2/H3 inconclusive); stale config hashes rejected
     - _Requirements: 4.2_
-  - [ ] 9.2 Paper draft
+  - [ ] 9.2 Paper draft (setup + methods written in paper/main.tex; results pending 8.2; not compiled, no LaTeX here)
     - `paper/main.tex` + `refs.bib`: setup, methods, results, limitations (single scenario, deterministic sim, 0-D prior)
     - _Requirements: 5.1_

@@ -1,0 +1,76 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,booktabs,graphicx,hyperref,natbib}
+\title{Model-free, model-based and physics-informed baselines\\for tokamak scenario control in Gym-TORAX}
+\author{Shushant Kumar Choudhary}
+\date{DRAFT --- results pending (main sweep not yet run)}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Gym-TORAX \citep{mouchamps2025gymtorax} exposes the TORAX transport simulator \citep{citrin2024torax} as a
+reinforcement-learning environment. We report a preregistered baseline study on its ITER-hybrid task: random,
+scripted and tuned classical controllers, PPO and SAC, an ensemble model with CEM model-predictive control, and the
+same planner with a 0-D power-balance prior on stored energy. Because the environment is deterministic, every
+method is also evaluated on held-out and out-of-distribution perturbations of the scenario.
+\textbf{[Results: TODO after the sweep.]}
+\end{abstract}
+
+\section{Introduction}
+Learned controllers for tokamaks have so far mostly targeted magnetic equilibrium control \citep{degrave2022magnetic}.
+Profile and scenario control, which sets the heating and current trajectory of a whole discharge, needs a transport
+simulator. Gym-TORAX makes TORAX available behind the Gym interface. This paper provides baseline numbers for it,
+with uncertainty estimates and a protocol that was frozen before any training (\texttt{PREREGISTRATION.md}).
+% TODO: check whether Gym-TORAX or later work already reports learned-controller results on IterHybrid-v0.
+
+\section{Environment and protocol}
+\paragraph{Task.} \texttt{gymtorax/IterHybrid-v0} (gymtorax 1.1.1, TORAX 1.4.3): 150 one-second steps, with
+actions for ECRH power and deposition (3), plasma current (1, ramp-limited to 0.2\,MA/s) and NBI power and
+deposition (3). The reward is a weighted sum of fusion gain (in H-mode), $H_{98}$, $\min(q_{\min},1)$ and
+$\min(q_{95}/3,1)$. We re-implement the reward from the next state and match the environment's value to $10^{-9}$
+at every step, so each term can be reported separately.
+\paragraph{Observation.} 14 scalars and 5 radial profiles at 8 points (54 physics features), affinely
+normalised with statistics frozen from 20 random and scripted episodes and clipped to $\pm10$, plus the previous
+action and $t/T$ (62 dimensions).
+\paragraph{Scenarios.} The nominal task is deterministic: the bundled scripted schedule scores exactly 3.263.
+We perturb the initial temperature, line-averaged density, pedestal temperature, $Z_{\rm eff}$ and the QLKNN
+collisionality multiplier. Training draws a new scenario at every reset. Evaluation uses the nominal scenario,
+15 held-out in-range scenarios and 5 out-of-distribution scenarios, fixed in advance; the scripted schedule spans
+3.01--3.53 on them.
+\paragraph{Statistics.} We report the interquartile mean over (seed, scenario) pairs, with 95\% stratified-bootstrap
+intervals \citep{agarwal2021precipice}. Hypotheses are tested on the bootstrap interval of IQM differences.
+
+\section{Methods}
+\paragraph{References.} Uniform random actions; the scripted ITER-hybrid schedule shipped with Gym-TORAX; and a
+classical controller (the same feed-forward schedule plus PI feedback of $q_{\min}$ on the plasma current) whose
+seven parameters are tuned with Optuna TPE \citep{akiba2019optuna} on training scenarios.
+\paragraph{Model-free.} PPO \citep{schulman2017ppo} with 8 parallel environments and SAC \citep{haarnoja2018sac}
+at one update per step, both from Stable-Baselines3 \citep{raffin2021sb3}, with 300k environment steps each.
+\paragraph{Model-based.} A 5-member probabilistic MLP ensemble predicts the change in the normalised physics features
+\citep{chua2018pets}. The planner is CEM (horizon 10, 256 samples, 4 iterations) over the ensemble-mean prediction,
+scored with the exact reward recomputed from predicted features. Training starts with 15k steps of random and
+noisy-scripted data and then alternates parallel MPC episodes with refits, for 50k environment steps in total.
+\paragraph{Physics-informed model.} The model-based agent with a prior on the stored energy. Linearising the
+0-D power balance $\dot W = P_{\rm heat} - W/\tau_E$ over one step gives
+\begin{equation}
+\Delta W_{t+1} = \Delta W_t\, e^{-1/\tau_{E,t}} + k\,(P^{\rm cmd}_{\rm aux} - P_{{\rm aux},t}),
+\end{equation}
+where $k$ is fitted by least squares on the agent's initial data. The ensemble learns the residual of $W$ and
+the full change of every other feature. On held-out scripted shots, the prior alone explains $R^2=0.76$ of the
+variance of $\Delta W$ ($k=0.235$, fitted on training-scenario data). A first version, which used $W/\tau_E$ as the
+heating power and IPB98(y,2) scaling for $\tau_E$, scored $R^2<0$: TORAX defines $\tau_E$ as $W/P_{\rm loss}$, so
+$W/\tau_E$ is the loss power, and the profiles take several seconds to respond to a heating step.
+
+\section{Results}
+\textbf{TODO after the sweep:} Table~\ref{tab:main} (\texttt{table\_main.tex}), Figures \texttt{iqm\_bars},
+\texttt{learning\_curves}, \texttt{components}, \texttt{trajectories}; verdicts H1--H3 from
+\texttt{results/verdicts.md}.
+% \begin{table}\centering\small\input{table_main.tex}\caption{IQM return [95\% CI].}\label{tab:main}\end{table}
+
+\section{Limitations}
+One scenario family (ITER hybrid); a deterministic simulator with QLKNN transport, so there is no sensor noise or
+model mismatch beyond the perturbations; a 0-D prior on a single feature; five seeds per method.
+
+\bibliographystyle{plainnat}
+\bibliography{refs}
+\end{document}
