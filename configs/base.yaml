@@ -1,0 +1,10 @@
+seed: 0
+device: cpu
+env:
+  norm: configs/env/norm.json
+train:
+  steps: 300000
+  eval_every: 25000
+  eval_set: configs/env/heldout.yaml
+  periodic_splits: [nominal, heldout]
+  eval_workers: 20

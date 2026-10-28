@@ -51,8 +51,8 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - Tests: each agent completes an episode, PID returns actions inside the Box
     - _Requirements: 2.1_
 
-- [ ] 4. Training entrypoint
-  - [ ] 4.1 Unified `scripts/train.py`
+- [x] 4. Training entrypoint
+  - [x] 4.1 Unified `scripts/train.py`
     - Dispatch on `agent.name`, write `results/<method>/<hash>/seed<k>/` with config, metrics.jsonl, and periodic held-out eval every 25k steps
     - Tests: a 300-step smoke run for a dummy agent produces all files
     - _Requirements: 3.1, 4.1_

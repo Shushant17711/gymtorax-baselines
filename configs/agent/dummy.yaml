@@ -1,0 +1,4 @@
+agent:
+  name: dummy
+train:
+  steps: 300

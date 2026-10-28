@@ -77,8 +77,19 @@ def apply_overrides(d: dict, overrides: list[str]) -> dict:
     return d
 
 
-def load_config(path: str | Path, overrides: list[str] | None = None) -> Config:
-    d = yaml.safe_load(Path(path).read_text()) or {}
+def deep_merge(a: dict, b: dict) -> dict:
+    """b wins; nested dicts merge recursively. Returns a new dict."""
+    out = copy.deepcopy(a)
+    for k, v in b.items():
+        out[k] = deep_merge(out[k], v) if isinstance(v, dict) and isinstance(out.get(k), dict) else copy.deepcopy(v)
+    return out
+
+
+def load_config(path: str | Path | list, overrides: list[str] | None = None) -> Config:
+    """path may be a list of YAML files merged left to right (later files win), then CLI overrides."""
+    d: dict = {}
+    for p in path if isinstance(path, list | tuple) else [path]:
+        d = deep_merge(d, yaml.safe_load(Path(p).read_text()) or {})
     return Config(apply_overrides(d, overrides or []))
 
 

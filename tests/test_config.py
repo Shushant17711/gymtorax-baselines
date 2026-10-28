@@ -24,3 +24,10 @@ def test_frozen_and_bad_override():
         c.a = 2
     with pytest.raises(ValueError):
         apply_overrides({}, ["nokey"])
+
+
+def test_merge_files(tmp_path):
+    (tmp_path / "a.yaml").write_text("x: {y: 1, z: 2}\nseed: 0\n")
+    (tmp_path / "b.yaml").write_text("x: {z: 5}\n")
+    c = load_config([tmp_path / "a.yaml", tmp_path / "b.yaml"], ["seed=2"])
+    assert c.x.y == 1 and c.x.z == 5 and c.seed == 2
