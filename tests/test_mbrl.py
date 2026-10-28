@@ -47,7 +47,7 @@ def test_reward_model_matches_env():
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("algo", ["mbrl"])
+@pytest.mark.parametrize("algo", ["mbrl", "pimbrl"])
 def test_mbrl_smoke(tmp_path, algo):
     from gtb.config import load_config
     from gtb.train import train

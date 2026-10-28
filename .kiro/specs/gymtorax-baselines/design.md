@@ -32,8 +32,10 @@ Scripted-agent returns span 3.01-3.53 across draws (nominal 3.263), so variants 
 - MBRL: an ensemble of 5 MLPs predicting the delta of the normalised obs; CEM horizon 10, 256 samples, 4 iterations; models train on the GPU, planning runs on CPU in the rollout workers. Data: 15k steps (half uniform-random, half scripted + N(0,0.2) noise), then rounds of 16 parallel MPC episodes (CPU
 planning in workers, exploration noise 0.1) with a warm-started refit after each round, total budget 50k steps.
   Planning reward is recomputed from predicted scalars with the env's reward function on the decoded features.
-- Physics-informed model (improvement): predicts W_thermal via dW/dt = P_heat - W/tau_E with tau_E from the IPB98 scaling,
-  then corrects it with a learned residual and models the remaining features by MLP. The hypothesis is better sample efficiency and better OOD transfer.
+- Physics-informed model (improvement): same ensemble and planner, plus a 0-D power-balance prior on stored energy,
+  dW_{t+1} = dW_t exp(-1/tau_E) + k (P_aux,cmd - P_aux,t) (loss linearised as W/tau_E; k fitted on the agent's own
+  initial data, ~0.24). The ensemble learns the residual for W and all other features. Hypothesis: better sample
+  efficiency and better OOD transfer.
 
 ## Metrics
 Primary: episodic return on held-out variants. Secondary: reward components, constraint-violation rate, failure rate,

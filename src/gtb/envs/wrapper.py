@@ -13,7 +13,7 @@ import gymtorax  # noqa: F401  (registers envs)
 import numpy as np
 
 SCALARS = ("Q_fusion", "H98", "q95", "q_min", "W_thermal_total", "P_fusion", "P_aux_total", "tau_E",
-           "n_e_line_avg", "fgw_n_e_line_avg", "li3", "T_e_volume_avg", "T_i_volume_avg")
+           "n_e_line_avg", "fgw_n_e_line_avg", "li3", "T_e_volume_avg", "T_i_volume_avg", "dW_thermal_dt")
 PROFILES = ("T_e", "T_i", "n_e", "q", "j_total")
 N_RADIAL = 8
 ACTION_KEYS = (("ECRH", 3), ("Ip", 1), ("NBI", 3))

@@ -71,10 +71,11 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - Tests: the ensemble fits a tiny dataset (<10% of baseline MSE); CEM solves a toy quadratic; recomputed reward matches the env reward on real scripted transitions (nominal + OOD) to within 1e-3; end-to-end smoke run. Planning costs ~0.14 s/step on one CPU thread. Full runs NOT started
     - _Requirements: 2.3_
 
-- [ ] 7. Physics-informed improvement
-  - [ ] 7.1 Power-balance prior model
-    - `src/gtb/agents/physics_model.py`: W update with tau_E from IPB98(y,2) plus a learned residual; the other features via MLP; same interface as the ensemble
-    - Tests: the prior alone predicts the scripted trajectory's W_thermal with R^2 > 0.5; the model plugs into the CEM planner
+- [x] 7. Physics-informed improvement
+  - [x] 7.1 Power-balance prior model
+    - `src/gtb/agents/physics_model.py`: dW_{t+1} = dW_t exp(-1/tau_E) + k (P_aux,cmd - P_aux,t) on the W_thermal feature (k fitted by least squares on the agent's own initial data), learned residual for W and the full delta of every other feature; same interface as the ensemble (`agent.name=pimbrl`)
+    - Tests: action bounds match the env; k fitted on train-split episodes is 0.235 and the prior alone predicts dW on held-out scripted shots with R^2 = 0.76 (> 0.5); the model plugs into the CEM planner; pimbrl end-to-end smoke run
+    - Note: the first version (P_heat = W/tau_E + IPB98(y,2) tau scaling) scored R^2 < 0 on every policy: TORAX's tau_E is W/P_loss, so W/tau_E is the loss power, not heating power, and profiles lag heating steps by seconds. Added `dW_thermal_dt` to the obs features (54 phys features now) and refit norm.json
     - _Requirements: 2.4_
 
 - [ ] 8. Preregistration and sweep
