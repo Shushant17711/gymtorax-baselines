@@ -64,11 +64,11 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - Tests: a smoke run of each (PPO 600 steps on 2 envs, SAC 400 steps) saves a model that `scripts/evaluate.py` reloads and re-evaluates identically. Full 300k runs NOT started (waiting for go-ahead)
     - _Requirements: 2.2_
 
-- [ ] 6. Model-based baseline
-  - [ ] 6.1 Ensemble dynamics and CEM planner
+- [x] 6. Model-based baseline
+  - [x] 6.1 Ensemble dynamics and CEM planner
     - `src/gtb/agents/mbrl.py`: 5-member probabilistic MLP ensemble (delta obs), torch on CUDA if available; CEM H=10, 256x4
     - Reward model: the env reward recomputed from predicted scalars (decoded with norm.json)
-    - Tests: the ensemble overfits a tiny dataset; CEM improves the objective on a toy quadratic; recomputed reward matches the env reward on real transitions to within 1e-3
+    - Tests: the ensemble fits a tiny dataset (<10% of baseline MSE); CEM solves a toy quadratic; recomputed reward matches the env reward on real scripted transitions (nominal + OOD) to within 1e-3; end-to-end smoke run. Planning costs ~0.14 s/step on one CPU thread. Full runs NOT started
     - _Requirements: 2.3_
 
 - [ ] 7. Physics-informed improvement

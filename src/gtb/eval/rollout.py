@@ -50,12 +50,12 @@ _ENV = None
 
 def _worker(args):
     global _ENV
-    policy_factory, variant, seed, norm_path = args
+    policy_factory, variant, seed, norm_path, *rest = args
     if _ENV is None:
         from gtb.envs.wrapper import FlatEnv, load_norm
 
         _ENV = FlatEnv(norm=load_norm(norm_path) if norm_path else None)
-    return run_episode(_ENV, policy_factory(), variant, seed)
+    return run_episode(_ENV, policy_factory(), variant, seed, record=bool(rest and rest[0]))
 
 
 def make_pool(workers: int | None = None) -> ProcessPoolExecutor:
@@ -74,7 +74,7 @@ def evaluate(policy_factory: Callable[[], Any], variants: list[dict], seeds: lis
 
 
 def run_jobs(jobs: list[tuple], workers: int | None = None, pool: ProcessPoolExecutor | None = None) -> list[dict]:
-    """jobs: (policy_factory, variant, seed, norm_path) tuples."""
+    """jobs: (policy_factory, variant, seed, norm_path[, record]) tuples."""
     if pool is not None:
         return list(pool.map(_worker, jobs))
     workers = min(workers or os.cpu_count() or 1, len(jobs))

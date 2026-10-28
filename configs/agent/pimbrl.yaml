@@ -1,0 +1,18 @@
+agent:
+  name: pimbrl
+  members: 5
+  hidden: 200
+  layers: 3
+  batch: 256
+  lr: 0.001
+  init_steps: 15000       # 100 episodes: half uniform-random, half scripted + N(0, 0.2) noise
+  scripted_noise: 0.2
+  explore_noise: 0.1      # Gaussian noise on MPC actions while collecting
+  fit_steps_first: 5000
+  fit_steps: 1000         # warm-started refit after every batch of MPC episodes
+  workers: 16
+  plan: {horizon: 10, samples: 256, iters: 4, elite_frac: 0.1, init_std: 0.5}
+train:
+  steps: 50000
+  eval_every: 10000
+device: cuda

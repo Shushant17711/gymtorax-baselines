@@ -29,7 +29,8 @@ Scripted-agent returns span 3.01-3.53 across draws (nominal 3.263), so variants 
 ## Methods
 - PID: the bundled PIDAgent on Ip, gains tuned by Optuna (50 trials) on train variants.
 - PPO/SAC: stable-baselines3 (torch), SubprocVecEnv with 8 workers, budget 300k env steps (~1-2 h each). SAC is single-env with UTD 1.
-- MBRL: an ensemble of 5 MLPs predicting the delta of the normalised obs; CEM horizon 10, 256 samples, 4 iterations, in torch on the GPU. Data: 20k random/scripted steps, then iterative MPC data, total budget 50k steps.
+- MBRL: an ensemble of 5 MLPs predicting the delta of the normalised obs; CEM horizon 10, 256 samples, 4 iterations, in torch on the GPU. Data: 15k steps (half uniform-random, half scripted + N(0,0.2) noise), then rounds of 16 parallel MPC episodes (CPU
+planning in workers, exploration noise 0.1) with a warm-started refit after each round, total budget 50k steps.
   Planning reward is recomputed from predicted scalars with the env's reward function on the decoded features.
 - Physics-informed model (improvement): predicts W_thermal via dW/dt = P_heat - W/tau_E with tau_E from the IPB98 scaling,
   then corrects it with a learned residual and models the remaining features by MLP. The hypothesis is better sample efficiency and better OOD transfer.

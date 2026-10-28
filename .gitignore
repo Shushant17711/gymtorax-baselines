@@ -8,3 +8,4 @@ results/**/*.zip
 results/**/*.pt
 logs/
 *.egg-info/
+results/**/*.npz
