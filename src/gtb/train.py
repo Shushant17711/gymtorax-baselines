@@ -44,6 +44,10 @@ def evaluate_run(run_dir: Path, cfg: Config, splits=None, workers: int | None = 
     return {"summary": summarise(suite), "episodes": suite}
 
 
+def _returns(ev: dict) -> dict[str, list[float]]:
+    return {k: [float(r["return"]) for r in v] for k, v in ev["episodes"].items()}
+
+
 def train(cfg: Config, root: str = "results", overwrite: bool = False) -> Path:
     rd = run_dir_for(cfg, root)
     if (rd / "eval.json").exists() and not overwrite:
@@ -68,7 +72,7 @@ def train(cfg: Config, root: str = "results", overwrite: bool = False) -> Path:
             state["next_eval"] += int(cfg.train.eval_every)
             agent.save()
             ev = evaluate_run(rd, cfg, splits=list(cfg.train.periodic_splits))
-            log({"eval": ev["summary"]})
+            log({"eval": ev["summary"], "returns": _returns(ev)})
 
     def make_env(seed: int = 0, split: str = "train"):
         return make_train_env(seed=seed, split=split, norm_path=cfg.env.norm)
@@ -78,7 +82,7 @@ def train(cfg: Config, root: str = "results", overwrite: bool = False) -> Path:
     agent.learn(ctx)
     agent.save()
     ev = evaluate_run(rd, cfg)
-    log({"eval": ev["summary"], "final": True})
+    log({"eval": ev["summary"], "returns": _returns(ev), "final": True})
     metrics.close()
     (rd / "eval.json").write_text(json.dumps({"env_steps": state["steps"], "wall_s": time.time() - state["t0"],
                                               **ev}, default=float))

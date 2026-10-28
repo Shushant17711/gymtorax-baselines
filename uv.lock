@@ -544,6 +544,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "gymtorax" },
+    { name = "matplotlib" },
     { name = "numpy" },
     { name = "optuna" },
     { name = "pyyaml" },
@@ -560,6 +561,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "gymtorax", specifier = "==1.1.1" },
+    { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "optuna", specifier = ">=5.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },

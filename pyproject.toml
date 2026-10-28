@@ -9,6 +9,7 @@ authors = [{ name = "Shushant Kumar Choudhary" }]
 requires-python = ">=3.12"
 dependencies = [
     "gymtorax==1.1.1",
+    "matplotlib>=3.11.2",
     "numpy>=2.0",
     "optuna>=5.0.0",
     "pyyaml>=6.0",

@@ -79,19 +79,20 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - _Requirements: 2.4_
 
 - [ ] 8. Preregistration and sweep
-  - [ ] 8.1 Freeze the protocol
+  - [x] 8.1 Freeze the protocol (PREREGISTRATION.md frozen at 1e8d4ec)
     - `PREREGISTRATION.md`: budgets, seeds, variants, metrics, the hypothesis that PI-MBRL beats MBRL on OOD IQM by a CI-separated margin; record the commit hash
     - `scripts/sweep.py` + `configs/sweep/main.yaml`: queue of (method x seed) with N workers, resumable
-    - Tests: sweep dry-run lists 20 jobs; resume skips finished dirs
+    - Tests: sweep dry-run lists 20 distinct jobs; resume skips finished dirs; `iqm_diff_ci` covers known differences
     - _Requirements: 3.3_
   - [ ] 8.2 Run the main sweep
     - Launch, monitor, and commit `results/**/eval.json` + `results/summary.json`
     - _Requirements: 3.1, 3.2_
 
 - [ ] 9. Figures and paper
-  - [ ] 9.1 Figures and tables
+  - [x] 9.1 Figures and tables
     - `scripts/make_figures.py`: learning curves, IQM bars (nominal/held-out/OOD), component breakdown, example trajectories (q, T_e, Q)
-    - Tests: runs on a fake results tree
+    - `src/gtb/report.py` (tables, H1-H3 verdicts via `iqm_diff_ci`, figures), `scripts/make_figures.py` -> `results/summary.json`, `results/verdicts.md`, `paper/table_main.tex`, `figures/*.pdf`; `--trajectories` rolls out nominal shots
+    - Tests: runs on a fake results tree with planted effects (H1 supported, H2/H3 inconclusive); stale config hashes rejected
     - _Requirements: 4.2_
   - [ ] 9.2 Paper draft
     - `paper/main.tex` + `refs.bib`: setup, methods, results, limitations (single scenario, deterministic sim, 0-D prior)
