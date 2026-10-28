@@ -7,9 +7,8 @@ info: per-step reward components (re-implemented from IterHybridEnv._compute_rew
 from __future__ import annotations
 
 import gymnasium as gym
-import numpy as np
-
 import gymtorax  # noqa: F401  (registers envs)
+import numpy as np
 
 SCALARS = ("Q_fusion", "H98", "q95", "q_min", "W_thermal_total", "P_fusion", "P_aux_total", "tau_E",
            "n_e_line_avg", "fgw_n_e_line_avg", "li3", "T_e_volume_avg", "T_i_volume_avg")
