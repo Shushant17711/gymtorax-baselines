@@ -20,7 +20,7 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - _Requirements: 4.1, 5.1_
 
 - [ ] 2. Environment wrapper and variants
-  - [ ] 2.1 Implement `FlatEnv`
+  - [x] 2.1 Implement `FlatEnv`
     - `src/gtb/envs/wrapper.py`: obs feature selection as in design, [-1,1]^7 action map, previous action + t/T features
     - `info` carries reward components, constraint flags, `failed`
     - Tests: obs shape/finite over one scripted episode, action map hits Box corners, reward equals the underlying env's
