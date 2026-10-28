@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Control the training pipeline.
+#   scripts/gtb start    start (or continue) everything in the background
+#   scripts/gtb pause    every job saves a checkpoint and stops; waits until all are stopped (a few minutes)
+#   scripts/gtb resume   same as start
+#   scripts/gtb status   what is running, progress of each run
+#   scripts/gtb log      follow the pipeline log
+set -uo pipefail
+cd "$(dirname "$0")/.."
+UNIT=gtb-pipeline
+active() {  # the pipeline, or the one-off switch-over from the old sweep (gtb-sweep / gtb-switch)
+  systemctl --user is-active --quiet $UNIT || systemctl --user is-active --quiet gtb-switch \
+    || systemctl --user is-active --quiet gtb-sweep
+}
+
+case "${1:-status}" in
+  start|resume)
+    rm -f PAUSE
+    if active; then echo "already running"; exit 0; fi
+    git ls-files --error-unmatch scripts/pipeline.sh >/dev/null 2>&1 || { echo "run from the repo"; exit 1; }
+    systemctl --user reset-failed $UNIT 2>/dev/null
+    systemd-run --user --unit=$UNIT --collect -p MemoryMax=19G -p MemorySwapMax=2G \
+      -p WorkingDirectory="$PWD" -E PATH="$HOME/.local/bin:/usr/bin:/bin" -E HOME="$HOME" \
+      bash -c 'scripts/pipeline.sh >> logs/pipeline.out 2>&1' >/dev/null
+    echo "started; follow with: scripts/gtb log" ;;
+  pause)
+    if ! active; then echo "not running"; exit 0; fi
+    touch PAUSE
+    echo -n "pausing: jobs finish their current episode/update and save a checkpoint"
+    for _ in $(seq 1 180); do  # up to 30 min (a periodic evaluation in progress is allowed to finish)
+      active || { echo; echo "paused. Safe to sleep/shut down. Continue with: scripts/gtb resume"; exit 0; }
+      echo -n "."; sleep 10
+    done
+    echo; echo "still stopping after 30 min; see scripts/gtb log"; exit 1 ;;
+  status)
+    if active; then echo "pipeline: RUNNING"; elif [ -e PAUSE ]; then echo "pipeline: PAUSED"; else echo "pipeline: stopped"; fi
+    uv run --quiet python scripts/progress.py ;;
+  log) tail -n 30 -f logs/pipeline.out ;;
+  *) sed -n '2,8p' "$0"; exit 2 ;;
+esac

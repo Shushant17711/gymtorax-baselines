@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
 import time
 from pathlib import Path
 
@@ -56,7 +58,46 @@ def _returns(ev: dict) -> dict[str, list[float]]:
     return {k: [float(r["return"]) for r in v] for k, v in ev["episodes"].items()}
 
 
-def train(cfg: Config, root: str = "results", overwrite: bool = False) -> Path:
+EXIT_PAUSED, EXIT_BUSY = 75, 73
+
+
+class RunBusy(Exception):
+    """Another process holds this run's lock."""
+
+
+def pause_file() -> Path:
+    """Creating this file pauses every training job (checked at each agent's safe points)."""
+    return Path(os.environ.get("GTB_PAUSE_FILE", "PAUSE"))
+
+
+def _ckpt_prepare(rd: Path) -> Path | None:
+    """Return rd/ckpt if a complete checkpoint exists, recovering from a crash in the middle of a swap.
+
+    A checkpoint is complete once its progress.json exists (written last). Newest first: ckpt.new, ckpt, ckpt.old."""
+    c, new, old = rd / "ckpt", rd / "ckpt.new", rd / "ckpt.old"
+    found = next((d for d in (new, c, old) if (d / "progress.json").exists()), None)
+    if found is not None and found != c:
+        shutil.rmtree(c, ignore_errors=True)
+        found.rename(c)
+    for d in (new, old):
+        shutil.rmtree(d, ignore_errors=True)
+    return c if found is not None else None
+
+
+def _ckpt_commit(rd: Path, new: Path) -> None:
+    c, old = rd / "ckpt", rd / "ckpt.old"
+    shutil.rmtree(old, ignore_errors=True)
+    if c.exists():
+        c.rename(old)
+    new.rename(c)
+    shutil.rmtree(old, ignore_errors=True)
+
+
+def train(cfg: Config, root: str = "results", overwrite: bool = False) -> Path | None:
+    """Train one run. Resumes from the run's checkpoint if there is one. Returns None if paused."""
+    import fcntl
+
+    from gtb.agents.base import Paused
     from gtb.envs.wrapper import set_q_cap
 
     set_q_cap(cfg.env.get("q_cap"))  # before any env or worker pool exists
@@ -65,11 +106,32 @@ def train(cfg: Config, root: str = "results", overwrite: bool = False) -> Path:
         print(f"done already: {rd}")
         return rd
     rd.mkdir(parents=True, exist_ok=True)
+    lock = (rd / ".lock").open("w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)  # released when this process exits
+    except BlockingIOError:
+        raise RunBusy(str(rd)) from None
+    if overwrite:
+        for d in ("ckpt", "ckpt.new", "ckpt.old"):
+            shutil.rmtree(rd / d, ignore_errors=True)
     save_config(cfg, rd / "config.yaml")
     seed_everything(int(cfg.seed))
     agent = get_agent_cls(cfg.agent.name)(cfg, rd)
-    metrics = (rd / "metrics.jsonl").open("w")
-    state = {"steps": 0, "next_eval": int(cfg.train.eval_every), "t0": time.time()}
+    mpath = rd / "metrics.jsonl"
+    ck = _ckpt_prepare(rd)
+    if ck is not None:
+        prog = json.loads((ck / "progress.json").read_text())
+        mpath.touch()
+        with mpath.open("r+b") as f:
+            f.truncate(prog["metrics_bytes"])  # drop anything logged after the checkpoint (it is redone)
+        metrics = mpath.open("a")
+        state = {"steps": prog["steps"], "next_eval": prog["next_eval"], "t0": time.time() - prog["wall"]}
+    else:
+        metrics = mpath.open("w")
+        state = {"steps": 0, "next_eval": int(cfg.train.eval_every), "t0": time.time()}
+    state["last_ckpt"] = time.time()
+    ckpt_minutes = float(os.environ.get("GTB_CKPT_MINUTES", "5"))
+    pause_at = int(os.environ.get("GTB_PAUSE_AT_STEPS", "0"))  # testing aid: pause at the first safe point >= N
 
     def log(rec: dict) -> None:
         metrics.write(json.dumps({"steps": state["steps"], "wall": round(time.time() - state["t0"], 1), **rec}) + "\n")
@@ -88,13 +150,42 @@ def train(cfg: Config, root: str = "results", overwrite: bool = False) -> Path:
     def make_env(seed: int = 0, split: str = "train"):
         return make_train_env(seed=seed, split=split, norm_path=cfg.env.norm)
 
+    def checkpoint(save) -> None:
+        new = rd / "ckpt.new"
+        shutil.rmtree(new, ignore_errors=True)
+        new.mkdir()
+        save(new)
+        metrics.flush()
+        os.sync()
+        (new / "progress.json").write_text(json.dumps({
+            "steps": state["steps"], "next_eval": state["next_eval"], "wall": time.time() - state["t0"],
+            "metrics_bytes": mpath.stat().st_size, "saved_at": time.strftime("%Y-%m-%d %H:%M:%S")}))
+        os.sync()
+        _ckpt_commit(rd, new)
+        state["last_ckpt"] = time.time()
+
+    def should_pause() -> bool:
+        return pause_file().exists() or (pause_at > 0 and state["steps"] >= pause_at)
+
+    if ck is not None:
+        log({"resumed": True})
+        print(f"resuming {rd} at {state['steps']} steps", flush=True)
     ctx = TrainContext(budget=int(cfg.train.steps), seed=int(cfg.seed), run_dir=rd, make_env=make_env, tick=tick,
-                       device=cfg.get("device", "cpu"))
-    agent.learn(ctx)
+                       device=cfg.get("device", "cpu"), resume=ck, should_pause=should_pause,
+                       checkpoint_due=lambda: time.time() - state["last_ckpt"] > 60 * ckpt_minutes,
+                       checkpoint=checkpoint)
+    try:
+        agent.learn(ctx)
+    except Paused:
+        metrics.close()
+        print(f"paused at {state['steps']} steps: {rd}", flush=True)
+        return None
     agent.save()
     ev = evaluate_run(rd, cfg)
     log({"eval": ev["summary"], "returns": _returns(ev), "final": True})
     metrics.close()
     (rd / "eval.json").write_text(json.dumps({"env_steps": state["steps"], "wall_s": time.time() - state["t0"],
                                               **ev}, default=float))
+    for d in ("ckpt", "ckpt.new", "ckpt.old"):  # finished: the checkpoint is no longer needed
+        shutil.rmtree(rd / d, ignore_errors=True)
     return rd

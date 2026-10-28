@@ -17,8 +17,8 @@ out-of-distribution scenarios. The nominal environment is deterministic, so a po
 only there could just memorise one action sequence.
 
 Status: all code is written and tested (tasks 1-8.1, 9.1). The protocol is frozen in `PREREGISTRATION.md`.
-**No learned method has been trained yet.** The main sweep (`scripts/sweep.py configs/sweep/main.yaml`,
-4 methods x 5 seeds) and the classical-controller tuning (`scripts/tune_classical.py`) are the next steps.
+Training is in progress (`scripts/gtb status`). Two full sweeps run, 4 methods x 5 seeds each: one on the
+original reward and one with Q capped at 10 (PREREGISTRATION.md, amendment 1).
 The plan is in `.kiro/specs/gymtorax-baselines/`.
 
 ## Usage
@@ -37,6 +37,32 @@ uv sync
 uv run pytest          # fast tests
 uv run pytest -m slow  # tests that run TORAX episodes
 ```
+
+## Running the study (pause and resume at any time)
+
+```bash
+scripts/gtb start     # run everything in the background (original reward, then capped reward)
+scripts/gtb status    # progress of every run
+scripts/gtb pause     # every job saves a checkpoint and stops (takes a few minutes); then sleep or shut down
+scripts/gtb resume    # continue exactly where it stopped
+scripts/gtb log       # follow the pipeline log
+```
+
+How it works:
+
+- **Checkpoints.** Each training run saves its full state to `<run>/ckpt/` every 5 minutes, and again when
+  paused. That state is the model, optimiser, replay buffer (SAC), collected data and RNG state (MBRL), the
+  step counter and the evaluation schedule. A checkpoint is written to `ckpt.new` and swapped in only once
+  complete, so a crash or power loss mid-save leaves the previous checkpoint intact.
+- **Safe points.** Jobs only pause between updates: after a PPO rollout and its update, after a SAC episode,
+  or after an MBRL collect-and-refit round. So a pause never splits an episode or an update.
+- **Nothing is counted twice.** On resume, `metrics.jsonl` is cut back to where the checkpoint was taken,
+  and the step budget is exact. MBRL resumes bit-for-bit (tested). PPO and SAC continue from their saved
+  state but draw fresh training scenarios after a resume.
+- **Unplanned stops** (crash, power cut, `kill`) lose at most the work since the last checkpoint (≤ 5 min per
+  run). `scripts/gtb resume` continues from there, and a crashed job is retried automatically.
+- **Laptop sleep** freezes the jobs and they continue on wake. Use `scripts/gtb pause` first if you will shut
+  down or reboot: the background service does not survive either.
 
 ## License
 

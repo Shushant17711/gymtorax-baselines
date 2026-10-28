@@ -88,6 +88,12 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - Launch, monitor, and commit `results/**/eval.json` + `results/summary.json`
     - _Requirements: 3.1, 3.2_
 
+- [ ] 8.4 Make training pausable and resumable
+    - `TrainContext.boundary`: agents checkpoint at safe points (PPO rollout start, SAC episode end, MBRL round end) every 5 min and on pause (`PAUSE` file); atomic `ckpt.new` -> `ckpt` swap; metrics truncated to the checkpoint; run lock
+    - `scripts/sweep.py`: exit 75 = paused, crashed jobs retried from checkpoint; `scripts/tune_classical.py` resumable via Optuna SQLite; `scripts/pipeline.sh` (idempotent stages) and `scripts/gtb start|pause|resume|status`
+    - Tests: checkpoint crash recovery at every swap point; dummy/SAC/PPO pause-resume reach the exact budget; MBRL resume is bit-identical; sweep pause and resume
+    - _Requirements: 3.1, 4.1_
+
 - [ ] 8.3 Amendment 1: capped-Q reward (PREREGISTRATION.md)
     - `env.q_cap` / `set_q_cap`: fusion term min(Q, 10); wrapper reward, MBRL planner reward and tuning all honour it
     - `scripts/run_capped.sh`: waits for the main sweep, then capped tuning, references and `configs/sweep/capped.yaml` into `results/capped/`

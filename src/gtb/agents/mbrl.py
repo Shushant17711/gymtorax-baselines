@@ -175,13 +175,31 @@ class MBRLAgent(Agent):
         def jobs(factories):
             return [(f, sample_variant(rng, "train"), 0, norm_path, True) for f in factories]
 
+        def save_ckpt(d: Path) -> None:
+            """Everything the loop depends on, so a resumed run continues exactly (on CPU)."""
+            torch.save({"model": self.model.cpu().state_dict(), "data": data, "steps": steps, "n_ep": n_ep,
+                        "rng": rng.bit_generator.state, "torch_rng": torch.get_rng_state(),
+                        "cuda_rng": torch.cuda.get_rng_state_all() if torch.cuda.is_initialized() else None},
+                       d / "mbrl.pt")
+
+        if ctx.resume:
+            ck = torch.load(ctx.resume / "mbrl.pt", map_location="cpu", weights_only=False)
+            self.model.load_state_dict(ck["model"])
+            data, steps, n_ep = ck["data"], ck["steps"], ck["n_ep"]
+            rng.bit_generator.state = ck["rng"]
+            torch.set_rng_state(ck["torch_rng"])
+            if ck["cuda_rng"] is not None and torch.cuda.is_available():
+                torch.cuda.set_rng_state_all(ck["cuda_rng"])
+
         with make_pool(int(a.get("pool_size", a.workers))) as pool:  # pool size: resources only
-            n_init = max(1, int(a.init_steps) // 150)
-            fs = [partial(_random, int(rng.integers(1 << 31))) if i % 2 == 0 else
-                  partial(_noisy_scripted, float(a.scripted_noise), int(rng.integers(1 << 31)))
-                  for i in range(n_init)]
-            add(run_jobs(jobs(fs), pool=pool), "init")
-            fit(int(a.fit_steps_first))
+            if not ctx.resume:
+                n_init = max(1, int(a.init_steps) // 150)
+                fs = [partial(_random, int(rng.integers(1 << 31))) if i % 2 == 0 else
+                      partial(_noisy_scripted, float(a.scripted_noise), int(rng.integers(1 << 31)))
+                      for i in range(n_init)]
+                add(run_jobs(jobs(fs), pool=pool), "init")
+                fit(int(a.fit_steps_first))
+                ctx.boundary(save_ckpt)
             while steps < ctx.budget:
                 n = min(int(a.workers), max(1, (ctx.budget - steps) // 150))
                 blob = (self.model_kind, self.model.kwargs, self.model.state_dict(), self.cfg.agent.plan.to_dict(),
@@ -191,6 +209,8 @@ class MBRLAgent(Agent):
                 add(run_jobs(jobs(fs), pool=pool), "mpc")
                 n_ep += n
                 fit(int(a.fit_steps))
+                if steps < ctx.budget:
+                    ctx.boundary(save_ckpt)
         self.data = data
 
     def save(self) -> None:
