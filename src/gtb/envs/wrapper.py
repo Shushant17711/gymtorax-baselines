@@ -6,6 +6,8 @@ info: per-step reward components (re-implemented from IterHybridEnv._compute_rew
 """
 from __future__ import annotations
 
+from typing import ClassVar
+
 import gymnasium as gym
 import gymtorax  # noqa: F401  (registers envs)
 import numpy as np
@@ -56,7 +58,7 @@ OBS_DIM = N_PHYS + ACT_DIM + 1
 
 
 class FlatEnv(gym.Env):
-    metadata = {"render_modes": []}
+    metadata: ClassVar[dict] = {"render_modes": []}
 
     def __init__(self, env_id: str = "gymtorax/IterHybrid-v0", norm: dict | None = None, env_kwargs=None):
         self.env = gym.make(env_id, **(env_kwargs or {}))
@@ -104,7 +106,7 @@ class FlatEnv(gym.Env):
             info = dict(info or {})
             f = featurize(state)
             failed = not np.all(np.isfinite(f))
-        except Exception as e:  # TORAX solver failure
+        except Exception as e:  # noqa: BLE001  TORAX solver failure
             state, r, term, trunc, info, failed = self.last_state, 0.0, True, False, {"error": repr(e)}, True
         self._t += 1
         self._prev_a = a
