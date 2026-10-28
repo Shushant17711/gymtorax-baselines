@@ -88,6 +88,12 @@ model-free -> model-based -> physics-informed improvement -> preregistered sweep
     - Launch, monitor, and commit `results/**/eval.json` + `results/summary.json`
     - _Requirements: 3.1, 3.2_
 
+- [ ] 8.3 Amendment 1: capped-Q reward (PREREGISTRATION.md)
+    - `env.q_cap` / `set_q_cap`: fusion term min(Q, 10); wrapper reward, MBRL planner reward and tuning all honour it
+    - `scripts/run_capped.sh`: waits for the main sweep, then capped tuning, references and `configs/sweep/capped.yaml` into `results/capped/`
+    - Tests: cap changes only the fusion term; planner reward matches the wrapper under both rewards; main-sweep run dirs unchanged
+    - _Requirements: 1.2, 3.3_
+
 - [ ] 9. Figures and paper
   - [x] 9.1 Figures and tables
     - `scripts/make_figures.py`: learning curves, IQM bars (nominal/held-out/OOD), component breakdown, example trajectories (q, T_e, Q)

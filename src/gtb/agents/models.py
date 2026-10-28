@@ -132,8 +132,13 @@ def reward_from_phys(phys: torch.Tensor, norm_mean: torch.Tensor, norm_std: torc
         i = IDX[k]
         return phys[..., i] * norm_std[i] + norm_mean[i]
 
+    from gtb.envs.wrapper import get_q_cap
+
     h = ((x("T_e0") > 10) & (x("T_i0") > 10)).to(phys.dtype)
-    return (h * x("Q_fusion") / 10 / 50 + h * x("H98").clamp(max=1.0) / 50
+    q, cap = x("Q_fusion"), get_q_cap()
+    if cap is not None:
+        q = q.clamp(max=cap)
+    return (h * q / 10 / 50 + h * x("H98").clamp(max=1.0) / 50
             + x("q_min").clamp(max=1.0) / 150 + (x("q95") / 3).clamp(max=1.0) / 150)
 
 

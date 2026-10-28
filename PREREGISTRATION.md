@@ -53,3 +53,30 @@ curve evaluated at 50k).
 - A method fails in more than 20% of the episodes on its training scenarios: we report it as-is. We do not
   retune it unless an amendment is written before looking at its evaluation-set returns.
 - An implementation bug found after the runs: fix, rerun every affected method on all seeds, report the bug.
+
+## Amendment 1 (2026-10-28, ~20:30 IST): capped-Q reward
+
+**What was seen before writing this.** Only the tuning of the classical reference controller
+(`scripts/tune_classical.py`, 120 trials). No learned-method return had been looked at; the main sweep
+had been running for ~35 minutes and only its step counters were checked.
+
+**Problem.** The best tuned classical controller scores 27.4 on train scenarios (26.08 on nominal),
+against 3.263 for the bundled scripted schedule. It gets there by switching auxiliary heating off.
+TORAX defines `Q_fusion = P_fusion / P_external_total`, and with no auxiliary heating the divisor is
+only the ohmic power (~0.6 MW). Fusion power stays at ~315 MW after the scheduled H-mode pedestal (t ≥ 100 s),
+so Q reaches ~500. The Gym-TORAX fusion-gain term `Q/10/50` has no cap, so it supplies 23.5 of the 26.08.
+The score then measures exploitation of a ratio, not plasma control.
+
+**Change.** A second, complete run of the protocol uses the same reward with Q capped at 10 (ITER's
+design target): fusion term `min(Q, 10)/10/50`, everything else identical (`env.q_cap=10`,
+`gtb.envs.wrapper.set_q_cap`). The cap does not bind for the scripted schedule (3.263 under both rewards);
+the exploiting classical controller scores 3.481 on nominal under the cap.
+Everything is re-run under the capped reward: classical-controller tuning (same script, seed, trials,
+scenarios; `configs/agent/classical_capped.yaml`), reference evaluation, and the full 20-run sweep
+(`configs/sweep/capped.yaml`, results in `results/capped/`).
+
+**Analysis.** The original-reward sweep continues unchanged and is reported in full as preregistered.
+H1-H3 are tested separately under each reward with the same decision rules, and both sets of verdicts
+are reported; neither is dropped after seeing results. Under the original reward we also report, per
+method, how much of the return comes from the fusion-gain term (whether it finds the exploit). The
+capped reward is the one we recommend as a benchmark.

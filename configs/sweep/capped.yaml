@@ -1,0 +1,18 @@
+# Amendment 1 sweep (PREREGISTRATION.md): identical to main.yaml, reward with Q capped at 10.
+# Run with --root results/capped.
+# `resources` overrides change process counts only (excluded from the run hash; results are identical).
+# mem_gb = peak RAM per job (~1 GB per TORAX process): training envs/workers + periodic-eval pool + main.
+seeds: [0, 1, 2, 3, 4]
+methods:
+  sac:    {config: configs/agent/sac.yaml,    overrides: [train.steps=300000, env.q_cap=10], slots: 2,  mem_gb: 3,
+           resources: [train.eval_workers=1]}
+  ppo:    {config: configs/agent/ppo.yaml,    overrides: [train.steps=300000, env.q_cap=10], slots: 8,  mem_gb: 11,
+           resources: [train.eval_workers=2]}
+  mbrl:   {config: configs/agent/mbrl.yaml,   overrides: [train.steps=50000, env.q_cap=10],  slots: 8,  mem_gb: 12,
+           resources: [train.eval_workers=2, agent.pool_size=8]}
+  pimbrl: {config: configs/agent/pimbrl.yaml, overrides: [train.steps=50000, env.q_cap=10],  slots: 8,  mem_gb: 12,
+           resources: [train.eval_workers=2, agent.pool_size=8]}
+cpu_slots: 20
+mem_gb: 17        # total budget for running jobs (machine: 23 GB, desktop ~4 GB)
+mem_margin_gb: 2  # also require MemAvailable >= job mem_gb + margin before starting a job
+priority: [mbrl, pimbrl]   # the primary hypothesis (H1) first

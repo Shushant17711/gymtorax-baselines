@@ -27,7 +27,12 @@ def main():
     ap.add_argument("--seeds", type=int, default=5, help="random policy: seeds per scenario")
     ap.add_argument("--eval-set", default="configs/env/heldout.yaml")
     ap.add_argument("--workers", type=int, default=20)
+    ap.add_argument("--q-cap", type=float, default=None, help="reference only: cap Q in the reward (amendment 1)")
+    ap.add_argument("--root", default="results", help="reference only: results root")
     a = ap.parse_args()
+    from gtb.envs.wrapper import set_q_cap
+
+    set_q_cap(a.q_cap)
 
     if a.run:
         rd = Path(a.run)
@@ -46,7 +51,7 @@ def main():
             params = yaml.safe_load(Path(a.params).read_text())["params"] if a.params else None
             suite = eval_suite(partial(reference.classical_policy, params), es, workers=a.workers)
         ev = {"env_steps": 0, "summary": summarise(suite), "episodes": suite}
-        out = Path("results/reference") / a.reference / "eval.json"
+        out = Path(a.root) / "reference" / a.reference / "eval.json"
         out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(ev, default=float))
     print(json.dumps(ev["summary"], indent=1))

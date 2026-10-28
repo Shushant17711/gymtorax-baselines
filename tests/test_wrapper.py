@@ -57,3 +57,41 @@ def test_normalised_scripted_episode_bounded():
     X = np.abs(np.stack(rows))
     assert X.max() <= 10.0
     assert (X >= 10.0).mean() < 1e-3  # clipping is rare
+
+
+def _fake_state(q, te0=20.0):
+    return {"profiles": {"T_e": np.array([te0, 1.0]), "T_i": np.array([te0, 1.0])},
+            "scalars": {"Q_fusion": np.array([q]), "H98": np.array([1.2]), "q_min": np.array([1.5]),
+                        "q95": np.array([4.0])}}
+
+
+def test_q_cap_only_changes_fusion_term(monkeypatch):
+    from gtb.envs.wrapper import reward_components, set_q_cap
+    monkeypatch.setenv("GTB_Q_CAP", "")
+    raw = reward_components(_fake_state(500.0))
+    assert raw["fusion_gain"] == pytest.approx(500 / 10 / 50)
+    set_q_cap(10)
+    cap = reward_components(_fake_state(500.0))
+    assert cap["fusion_gain"] == pytest.approx(10 / 10 / 50)
+    assert {k: v for k, v in cap.items() if k != "fusion_gain"} == {k: v for k, v in raw.items() if k != "fusion_gain"}
+    assert reward_components(_fake_state(3.0)) == reward_components(_fake_state(3.0))  # below cap: unchanged
+    set_q_cap(None)
+    assert reward_components(_fake_state(500.0)) == raw
+
+
+def test_reward_from_phys_respects_cap(monkeypatch):
+    import torch
+
+    from gtb.agents.models import IDX, reward_from_phys
+    from gtb.envs.wrapper import N_PHYS, reward_components, set_q_cap
+    monkeypatch.setenv("GTB_Q_CAP", "")
+    phys = torch.zeros(N_PHYS, dtype=torch.float64)
+    vals = {"Q_fusion": 500.0, "H98": 1.2, "q_min": 1.5, "q95": 4.0, "T_e0": 20.0, "T_i0": 20.0}
+    for k, v in vals.items():
+        phys[IDX[k]] = v
+    nm, ns = torch.zeros(N_PHYS, dtype=torch.float64), torch.ones(N_PHYS, dtype=torch.float64)
+    for cap in (None, 10.0):
+        set_q_cap(cap)
+        want = sum(reward_components(_fake_state(500.0)).values())
+        assert float(reward_from_phys(phys, nm, ns)) == pytest.approx(want)
+    set_q_cap(None)

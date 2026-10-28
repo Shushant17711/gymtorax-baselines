@@ -32,13 +32,17 @@ def main():
     ap.add_argument("--workers", type=int, default=20)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default="configs/agent/classical.yaml")
+    ap.add_argument("--q-cap", type=float, default=None, help="cap Q in the reward (amendment 1)")
     args = ap.parse_args()
 
     rng = np.random.default_rng(1000 + args.seed)
     variants = [sample_variant(rng, "train") for _ in range(args.n_variants)]
     study = optuna.create_study(direction="maximize", sampler=optuna.samplers.TPESampler(seed=args.seed))
     study.enqueue_trial(dict(SCRIPTED_PARAMS))
-    log = Path("results/tuning/classical.jsonl")
+    from gtb.envs.wrapper import set_q_cap
+
+    set_q_cap(args.q_cap)  # before the worker pool is spawned
+    log = Path("results/tuning") / (Path(args.out).stem + ".jsonl")
     log.parent.mkdir(parents=True, exist_ok=True)
     log.write_text("")
     env_steps, t0 = 0, time.time()
@@ -62,7 +66,7 @@ def main():
             done += len(trials)
             print(f"[{time.time()-t0:6.0f}s] trials {done}/{args.trials} best {study.best_value:.4f} "
                   f"(scripted {study.trials[0].value:.4f})", flush=True)
-    out = {"name": "classical", "params": study.best_params, "tuning": {
+    out = {"name": "classical", "params": study.best_params, "q_cap": args.q_cap, "tuning": {
         "trials": args.trials, "variants": variants, "env_steps": env_steps, "best_train_score": study.best_value,
         "scripted_train_score": study.trials[0].value, "seed": args.seed}}
     Path(args.out).write_text(yaml.safe_dump(out, sort_keys=False))

@@ -6,6 +6,7 @@ info: per-step reward components (re-implemented from IterHybridEnv._compute_rew
 """
 from __future__ import annotations
 
+import os
 from typing import ClassVar
 
 import gymnasium as gym
@@ -26,12 +27,28 @@ def _scalar(state: dict, k: str) -> float:
     return float(np.asarray(state["scalars"][k]).reshape(-1)[0])
 
 
+def set_q_cap(q_cap: float | None) -> None:
+    """Cap Q in the fusion-gain reward term (None = original uncapped reward, PREREGISTRATION amendment 1).
+
+    Stored in the environment so spawned worker processes (rollouts, MPC planning) inherit it."""
+    os.environ["GTB_Q_CAP"] = "" if q_cap is None else str(float(q_cap))
+
+
+def get_q_cap() -> float | None:
+    v = os.environ.get("GTB_Q_CAP", "")
+    return float(v) if v else None
+
+
 def reward_components(state: dict) -> dict[str, float]:
-    """Exact re-implementation of IterHybridEnv._compute_reward, as a function of next_state only."""
+    """Exact re-implementation of IterHybridEnv._compute_reward, as a function of next_state only.
+
+    With a Q cap set (`set_q_cap`), the fusion-gain term uses min(Q, cap)."""
     te0 = float(np.asarray(state["profiles"]["T_e"])[0])
     ti0 = float(np.asarray(state["profiles"]["T_i"])[0])
     h_mode = te0 > 10 and ti0 > 10
-    q_fus = _scalar(state, "Q_fusion") / 10
+    q = _scalar(state, "Q_fusion")
+    cap = get_q_cap()
+    q_fus = (q if cap is None else min(q, cap)) / 10
     h98 = _scalar(state, "H98")
     q_min = _scalar(state, "q_min")
     q95 = _scalar(state, "q95")
@@ -130,6 +147,8 @@ class FlatEnv(gym.Env):
         self._prev_a = a
         self.last_state = state
         comps = reward_components(state)
+        if get_q_cap() is not None and not failed:
+            r = sum(comps.values())  # capped reward replaces the env's own
         info.update(components=comps, failed=failed,
                     viol_q_min=_scalar(state, "q_min") < 1.0, viol_q95=_scalar(state, "q95") < 3.0)
         obs = self._obs(state)

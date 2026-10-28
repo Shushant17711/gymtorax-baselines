@@ -39,6 +39,9 @@ def summarise(suite: dict[str, list[dict]]) -> dict:
 
 
 def evaluate_run(run_dir: Path, cfg: Config, splits=None, workers: int | None = None) -> dict:
+    from gtb.envs.wrapper import set_q_cap
+
+    set_q_cap(cfg.env.get("q_cap"))
     from gtb.eval.rollout import eval_suite
 
     es = load_eval_set(cfg.train.eval_set)
@@ -54,6 +57,9 @@ def _returns(ev: dict) -> dict[str, list[float]]:
 
 
 def train(cfg: Config, root: str = "results", overwrite: bool = False) -> Path:
+    from gtb.envs.wrapper import set_q_cap
+
+    set_q_cap(cfg.env.get("q_cap"))  # before any env or worker pool exists
     rd = run_dir_for(cfg, root)
     if (rd / "eval.json").exists() and not overwrite:
         print(f"done already: {rd}")
