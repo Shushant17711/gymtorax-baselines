@@ -29,8 +29,8 @@ for name, sweep, root in (("original reward", "configs/sweep/main.yaml", "result
             state = "done"
         elif (rd / "ckpt" / "progress.json").exists() or steps_of(rd):
             ck = rd / "ckpt" / "progress.json"
-            saved = json.loads(ck.read_text())["steps"] if ck.exists() else 0
-            state = f"{steps_of(rd):>7,}/{budget:,} steps  (checkpoint at {saved:,})"
+            saved = f"checkpoint at {json.loads(ck.read_text())['steps']:,}" if ck.exists() else "no checkpoint yet"
+            state = f"{steps_of(rd):>7,}/{budget:,} steps  ({saved})"
         else:
             continue
         print(f"  {j['method']:7s} seed{j['seed']}  {state}")
